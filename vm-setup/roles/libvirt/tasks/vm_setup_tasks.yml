@@ -57,7 +57,6 @@
   environment:
     LIBVIRT_DEFAULT_URI: "{{ libvirt_uri }}"
   block:
-
     # Create libvirt volumes for the vm hosts.
     - name: Check if vm volumes exist
       command: >
@@ -127,7 +126,6 @@
 - name: set_fact BMC Driver
   set_fact:
     vm_driver: "{{ lookup('env', 'BMC_DRIVER') | default('ipmi', true) }}"
-
 
 # Generate the ironic node inventory files.  Note that this
 # task *must* occur after the above vm tasks, because if

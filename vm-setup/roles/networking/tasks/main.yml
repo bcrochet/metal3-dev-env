@@ -1,0 +1,9 @@
+- name: networking role setup tasks
+  block:
+    - include_tasks: setup.yml
+  when: networking_action == "setup"
+
+- name: networking role teardown tasks
+  block:
+    - include_tasks: teardown.yml
+  when: networking_action == "teardown"

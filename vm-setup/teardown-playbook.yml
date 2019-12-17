@@ -11,6 +11,10 @@
       vars:
         libvirt_action: "teardown"
     - import_role:
+        name: networking
+      vars:
+        networking_action: "teardown"
+    - import_role:
         name: virtbmc
       vars:
         virtbmc_action: "teardown"

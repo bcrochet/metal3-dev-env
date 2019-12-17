@@ -14,6 +14,7 @@ if sudo [ ! -f /root/.ssh/id_rsa_virt_power ]; then
 fi
 
 ANSIBLE_FORCE_COLOR=true ansible-playbook \
+    -e @vm_setup_vars.yml \
     -e "working_dir=$WORKING_DIR" \
     -e "num_nodes=$NUM_NODES" \
     -e "extradisks=$VM_EXTRADISKS" \
@@ -45,70 +46,12 @@ if [[ $OS == ubuntu ]]; then
   source ubuntu_bridge_network_configuration.sh
   # shellcheck disable=SC1091
   source disable_apparmor_driver_libvirtd.sh
-else
-  if [ "$MANAGE_PRO_BRIDGE" == "y" ]; then
-      # Adding an IP address in the libvirt definition for this network results in
-      # dnsmasq being run, we don't want that as we have our own dnsmasq, so set
-      # the IP address here
-      if [ ! -e /etc/sysconfig/network-scripts/ifcfg-provisioning ] ; then
-        if [[ "${PROVISIONING_IPV6}" == "true" ]]; then
-          echo -e "DEVICE=provisioning\nTYPE=Bridge\nONBOOT=yes\nNM_CONTROLLED=no\nIPV6_AUTOCONF=no\nIPV6INIT=yes\nIPV6ADDR=${IPV6_ADDR_PREFIX}::1/64" | sudo dd of=/etc/sysconfig/network-scripts/ifcfg-provisioning
-        else
-          echo -e "DEVICE=provisioning\nTYPE=Bridge\nONBOOT=yes\nNM_CONTROLLED=no\nBOOTPROTO=static\nIPADDR=172.22.0.1\nNETMASK=255.255.255.0" | sudo dd of=/etc/sysconfig/network-scripts/ifcfg-provisioning
-     	  fi
-      fi
-      sudo ifdown provisioning || true
-      sudo ifup provisioning
-
-      # Need to pass the provision interface for bare metal
-      if [ "$PRO_IF" ]; then
-          echo -e "DEVICE=$PRO_IF\nTYPE=Ethernet\nONBOOT=yes\nNM_CONTROLLED=no\nBRIDGE=provisioning" | sudo dd of="/etc/sysconfig/network-scripts/ifcfg-$PRO_IF"
-          sudo ifdown "$PRO_IF" || true
-          sudo ifup "$PRO_IF"
-      fi
-  fi
-
-  if [ "$MANAGE_INT_BRIDGE" == "y" ]; then
-      # Create the baremetal bridge
-      if [ ! -e /etc/sysconfig/network-scripts/ifcfg-baremetal ] ; then
-          echo -e "DEVICE=baremetal\nTYPE=Bridge\nONBOOT=yes\nNM_CONTROLLED=no" | sudo dd of=/etc/sysconfig/network-scripts/ifcfg-baremetal
-      fi
-      sudo ifdown baremetal || true
-      sudo ifup baremetal
-
-      # Add the internal interface to it if requests, this may also be the interface providing
-      # external access so we need to make sure we maintain dhcp config if its available
-      if [ "$INT_IF" ]; then
-          echo -e "DEVICE=$INT_IF\nTYPE=Ethernet\nONBOOT=yes\nNM_CONTROLLED=no\nBRIDGE=baremetal" | sudo dd of="/etc/sysconfig/network-scripts/ifcfg-$INT_IF"
-          if sudo nmap --script broadcast-dhcp-discover -e "$INT_IF" | grep "IP Offered" ; then
-              echo -e "\nBOOTPROTO=dhcp\n" | sudo tee -a /etc/sysconfig/network-scripts/ifcfg-baremetal
-              sudo systemctl restart network
-          else
-             sudo systemctl restart network
-          fi
-      fi
-  fi
-
-  # restart the libvirt network so it applies an ip to the bridge
-  if [ "$MANAGE_BR_BRIDGE" == "y" ] ; then
-      sudo virsh net-destroy baremetal
-      sudo virsh net-start baremetal
-      if [ "$INT_IF" ]; then #Need to bring UP the NIC after destroying the libvirt network
-          sudo ifup "$INT_IF"
-      fi
-  fi
 fi
 
 ANSIBLE_FORCE_COLOR=true ansible-playbook \
     -e "{use_firewalld: $USE_FIREWALLD}" \
     -i vm-setup/inventory.ini \
     -b -vvv vm-setup/firewall.yml
-
-# Need to route traffic from the provisioning host.
-if [ "$EXT_IF" ]; then
-  sudo iptables -t nat -A POSTROUTING --out-interface "$EXT_IF" -j MASQUERADE
-  sudo iptables -A FORWARD --in-interface baremetal -j ACCEPT
-fi
 
 # Switch NetworkManager to internal DNS
 if [[ "$MANAGE_BR_BRIDGE" == "y" && $OS == "centos" ]] ; then

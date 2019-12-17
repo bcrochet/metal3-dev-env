@@ -1,0 +1,10 @@
+---
+- name: Teardown previous network setup
+  hosts: virthost
+  connection: local
+  gather_facts: true
+  tasks:
+    - import_role:
+        name: networking
+      vars:
+        networking_action: "teardown"

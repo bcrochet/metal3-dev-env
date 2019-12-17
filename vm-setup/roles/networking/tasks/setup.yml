@@ -1,0 +1,49 @@
+---
+# Install OVS dependencies
+- name: Install OVS dependencies
+  include_role:
+    name: 'ovs'
+
+- name: Create bridge
+  template:
+    dest: /etc/sysconfig/network-scripts/ifcfg-metal3
+    src: ifcfg-metal3.j2
+    owner: root
+    group: root
+    mode: 644
+  when: manage_bridge is defined and manage_bridge == true
+
+- name: Define external gateway
+  template:
+    dest: /etc/sysconfig/network-scripts/ifcfg-externalgw
+    src: ifcfg-externalgw.j2
+    owner: root
+    group: root
+    mode: 644
+  with_items: "{{ networks }}"
+  when: manage_bridge is defined and manage_bridge == true
+
+- name: Reload NetworkManager
+  service:
+    name: NetworkManager
+    state: reloaded 
+
+- name: Bring up the gateway, which will also start the bridge
+  command: ifup externalgw
+
+- name: NAT the interface
+  iptables:
+    action: append
+    chain: POSTROUTING
+    table: nat
+    out_interface: metal3
+    jump: MASQUERADE
+  when: manage_bridge is defined and manage_bridge == true
+
+- name: And forward
+  iptables:
+    action: append
+    chain: FORWARD
+    in_interface: baremetal
+    jump: ACCEPT
+  when: manage_bridge is defined and manage_bridge == true

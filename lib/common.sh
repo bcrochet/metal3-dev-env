@@ -362,17 +362,18 @@ function init_minikube() {
     # so just attach it before next boot. As long as the
     # 02_configure_host.sh script does not run, the provisioning network does
     # not exist. Attempting to start Minikube will fail until it is created.
-    if ! echo "$MINIKUBE_IFACES" | grep -w provisioning  > /dev/null ; then
+    if ! echo "$MINIKUBE_IFACES" | grep -w metal3  > /dev/null ; then
       sudo virsh attach-interface --domain minikube \
-          --model virtio --source provisioning \
+          --model e1000 --source metal3 \
+          --type network --config
+      sudo virsh attach-interface --domain minikube \
+          --model e1000 --source metal3 \
           --type network --config
     fi
 
-    if ! echo "$MINIKUBE_IFACES" | grep -w baremetal  > /dev/null ; then
-      sudo virsh attach-interface --domain minikube \
-          --model virtio --source baremetal \
-          --type network --config
-    fi
+    ANSIBLE_FORCE_COLOR=yes ansible-playbook \
+    -i vm-setup/inventory.ini \
+    -b -vvv vm-setup/minikube.yml
 }
 
 

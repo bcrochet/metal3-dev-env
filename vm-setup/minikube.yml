@@ -1,0 +1,30 @@
+---
+- name: Add interfaces to minikube vm
+  hosts: virthost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Get the XML for the minikube VM
+      virt:
+        command: get_xml
+        name: minikube
+      register: minikubexml
+
+    - name: Add the portgroup
+      xml:
+        xmlstring: "{{ minikubexml.get_xml }}"
+        xpath: /domain/devices/interface/source[@network='metal3']
+        attribute: portgroup
+        value: trunk
+        pretty_print: yes
+      register: minikubexmlout
+
+    - name: Undefine the minikube VM
+      virt:
+        command: undefine
+        name: minikube
+
+    - name: Redefine the minikube VM with new XML
+      virt:
+        command: define
+        xml: minikubexmlout.xmlstring

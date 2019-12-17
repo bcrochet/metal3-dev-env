@@ -1,0 +1,19 @@
+DEVICE=externalgw
+DEVICETYPE=ovs
+TYPE=OVSIntPort
+OVS_BRIDGE=metal3
+IPADDR={{ baremetal_network_cidr | nthhost(1) }}
+NETMASK={{ baremetal_network_cidr | ipaddr('netmask') }}
+BOOTPROTO=static
+{% if item.portgroup is defined %}
+{%   for portgroup in item.portgroup %}
+{%     if portgroup.vlan is defined %}
+{%       if portgroup.name == 'external' %}
+OVS_OPTIONS="tag={{ portgroup.vlan[0].tag }}"
+{%       endif %}
+{%     endif %}
+{%   endfor %}
+{% endif %}
+OVS_EXTRA="set Interface $DEVICE external-ids:iface-id=$(hostname -s)-$DEVICE-vif"
+HOTPLUG=no
+NM_CONTROLLED=yes

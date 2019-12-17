@@ -7,6 +7,8 @@
     - import_role:
         name: common
     - import_role:
+        name: networking
+    - import_role:
         name: libvirt
     - import_role:
         name: virtbmc

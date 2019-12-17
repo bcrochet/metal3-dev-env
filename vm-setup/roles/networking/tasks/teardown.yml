@@ -1,0 +1,13 @@
+---
+- name: Bring up the gateway, which will also start the bridge
+  command: ifdown externalgw
+
+- name: Bring down bridge
+  command: ifdown metal3
+
+
+
+- name: Reload NetworkManager
+  service:
+    name: NetworkManager
+    state: reloaded 
